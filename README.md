@@ -42,7 +42,8 @@
 - (void)__sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event{
     NSLog(@"Class: %@ -> SEL: %@",
           NSStringFromClass([target class]), NSStringFromSelector(action));
-
+    
+    // 重新调用
     [self __sendAction:action to:target forEvent:event];
 }
 
