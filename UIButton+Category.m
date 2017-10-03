@@ -1,10 +1,4 @@
-//
-//  UIButton+KKButton.m
-//  SeekStar
-//
-//  Created by Ken_lu on 17/1/5.
-//  Copyright © 2017年 模特. All rights reserved.
-//
+
 
 #import "UIButton+Category.h"
 #import <objc/runtime.h>
@@ -12,23 +6,44 @@
 
 @implementation UIButton (Category)
 
-- (void)setTitleOnLeftIconOnRight{
-    CGFloat imageWidth = self.imageView.image.size.width;
-    CGFloat titleLabelWidth = self.titleLabel.bounds.size.width;
-    
-    [self setTitleEdgeInsets:UIEdgeInsetsMake(0, -imageWidth, 0, imageWidth)];
-    [self setImageEdgeInsets:UIEdgeInsetsMake(0, titleLabelWidth, 0, -titleLabelWidth)];
-}
-
+/*
+ * 思路：
+ *   1.拦截系统UIControl 的sendAction:to:forEvent: 方法。
+ *   2.利用runtime 替换sendAction:to:forEvent: 方法成自定义的__sendAction:to:forEvent: 方法，其中加入打印代码。
+ *   3.重新调用原来按钮事件的实现逻辑。
+ */
 + (void)load{
-    /*
-     * 思路：
-     *   1.拦截系统UIControl 的sendAction:to:forEvent: 方法。
-     *   2.利用runtime 替换sendAction:to:forEvent: 方法成自定义的__sendAction:to:forEvent: 方法，其中加入打印代码。
-     *   3.重新调用原来按钮事件的实现逻辑。
-     */
-    [self __exchangeMethodWithOriginSEL:@selector(sendAction:to:forEvent:)
-                            exchangeSEL:@selector(__sendAction:to:forEvent:)];
+
+    SEL originSEL = @selector(sendAction:to:forEvent:);
+    SEL exchangeSEL = @selector(__sendAction:to:forEvent:);
+    
+    Method originMethod = class_getInstanceMethod(self, originSEL);
+    Method changeMethod = class_getInstanceMethod(self, exchangeSEL);
+    
+    // 方法交换应该被保证，在程序中只会执行一次
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        
+        // 首先动态添加方法，实现是被交换的方法，返回值表示添加成功还是失败
+        BOOL isAddSuccess = class_addMethod(self,
+                                            originSEL,
+                                            method_getImplementation(changeMethod),
+                                            method_getTypeEncoding(changeMethod));
+        
+        if (isAddSuccess) {
+            // 如果成功，说明类中不存在这个方法的实现
+            // 将被交换方法的实现替换到这个并不存在的实现
+            class_replaceMethod(self,
+                                exchangeSEL,
+                                method_getImplementation(originMethod),
+                                method_getTypeEncoding(originMethod));
+        }
+        else{
+            // 否则，交换两个方法的实现
+            method_exchangeImplementations(originMethod, changeMethod);
+        }
+        
+    });
 }
 
 - (void)__sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event{
