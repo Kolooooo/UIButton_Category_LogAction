@@ -43,12 +43,11 @@
     });
 }
 
-// 替换Action 的方法
 - (void)__sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event{
     NSLog(@"Class: %@ -> SEL: %@",
           NSStringFromClass([target class]), NSStringFromSelector(action));
-    
-    // 现在调用的替换方法就是原方法
+
+    // 重新调用原来按钮事件的实现逻辑，现在调用的替换方法就是原方法
     [self __sendAction:action to:target forEvent:event];
 }
 
